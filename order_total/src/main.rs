@@ -53,6 +53,12 @@ impl Order {
 }
 */
 
+#[derive(Serialize, Deserialize, Debug)]
+struct OrderError {
+    status: String,
+    message: String,
+}
+
 /// This is our service handler. It receives a Request, routes on its
 /// path, and returns a Future of a Response.
 async fn handle_request(req: Request<Body>) -> Result<Response<Body>, anyhow::Error> {
@@ -70,16 +76,23 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, anyhow::Er
             let mut order: Order = serde_json::from_slice(&byte_stream).unwrap();
 
             let client = reqwest::Client::new();
-            let rate = client.post(&*SALES_TAX_RATE_SERVICE)
+            let response = client.post(&*SALES_TAX_RATE_SERVICE)
                 .body(order.shipping_zip.clone())
                 .send()
-                .await?
-                .text()
-                .await?
-                .parse::<f32>()?;
-
-            order.total = order.subtotal * (1.0 + rate);
-            Ok(response_build(&serde_json::to_string_pretty(&order)?))
+                .await?;
+            if response.status() == StatusCode::OK {
+                let rate = response.text()
+                    .await?
+                    .parse::<f32>()?;
+                order.total = order.subtotal * (1.0 + rate);
+                Ok(response_build(&serde_json::to_string_pretty(&order)?)) 
+            } else {
+                let error = OrderError {
+                    status: "error".into(),
+                    message: "The zip code in the order does not have a corresponding sales tax rate.".into(),
+                };
+                Ok(response_build(&serde_json::to_string_pretty(&error)?))
+            }
         }
 
         // Return the 404 Not Found for other routes.
