@@ -27,8 +27,18 @@
       body: JSON.stringify(data),
       headers: { "Content-type": "application/json" },
     })
-    .then(response => response.json())
-    .then(json => updateOrderForm(json));
+    .then(response => {
+      let json = response.json();
+      if (response.ok) {
+        return json;
+      } else {
+        throw(response.statusText);
+      }
+    })
+    .then(
+      json => updateOrderForm(json),
+      error => alert("An error occurred while submitting order:  " + error),
+    );
   }
 
   function updateOrderForm(json) {

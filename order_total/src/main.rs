@@ -91,7 +91,9 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, anyhow::Er
                     status: "error".into(),
                     message: "The zip code in the order does not have a corresponding sales tax rate.".into(),
                 };
-                Ok(response_build(&serde_json::to_string_pretty(&error)?))
+                let mut not_found = response_build(&serde_json::to_string_pretty(&error)?);
+                *not_found.status_mut() = StatusCode::NOT_FOUND;
+                Ok(not_found)
             }
         }
 
